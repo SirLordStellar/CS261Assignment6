@@ -51,7 +51,7 @@ struct pq* pq_create() {
  *   pq - the priority queue to be destroyed.  May not be NULL.
  */
 void pq_free(struct pq* pq) {
-  free(pq -> heap);
+  dynarray_free(pq -> heap);
   free(pq);
 }
 
@@ -80,96 +80,72 @@ void dynarray_swap(struct dynarray* dynarray, int index1, int index2) {
   dynarray_set(dynarray, index2, temp1);
 }
 
-int isheap(struct dynarray* dynarray, int index) {
-  if (index >= dynarray_length(dynarray)) {
-    return 1;
-  }
-  if ((2 * index + 1) >= dynarray_length(dynarray)) {
-    return 1;
-  }
-  if ((2 * index + 2) >= dynarray_length(dynarray)) {
-    if (((struct pqnode*)(dynarray_get(dynarray, index))) -> priority >= ((struct pqnode*)(dynarray_get(dynarray, 2 * index + 1))) -> priority) {
-      return isheap(dynarray, 2 * index + 1);
-    } else {
-      return 0;
-    }
-  }
-  if (((struct pqnode*)(dynarray_get(dynarray, index))) -> priority >= ((struct pqnode*)(dynarray_get(dynarray, 2 * index + 1))) -> priority && ((struct pqnode*)(dynarray_get(dynarray, index))) -> priority >= ((struct pqnode*)(dynarray_get(dynarray, 2 * index + 2))) -> priority) {
-    return isheap(dynarray, 2 * index + 1) * isheap(dynarray, 2 * index + 2);
-  }
 
-
-
-  if (dynarray_get(dynarray, 2 * index + 1) == NULL && dynarray_get(dynarray, 2 * index + 2) == NULL) {
-    return 1;
-  }
-  if (dynarray_get(dynarray, 2 * index + 1) == NULL) {
-    if (((struct pqnode*)(dynarray_get(dynarray, index))) -> priority >= ((struct pqnode*)(dynarray_get(dynarray, 2 * index + 2))) -> priority) {
-      return isheap(dynarray, 2 * index + 2);
-    } else {
-      return 0;
-    }
-  }
-  if (dynarray_get(dynarray, 2 * index + 2) == NULL) {
-    if (((struct pqnode*)(dynarray_get(dynarray, index))) -> priority >= ((struct pqnode*)(dynarray_get(dynarray, 2 * index + 1))) -> priority) {
-      return isheap(dynarray, 2 * index + 1);
-    } else {
-      return 0;
-    }
-  }
-  if (dynarray_get(dynarray, 2 * index + 1) != NULL && dynarray_get(dynarray, 2 * index + 2) != NULL && 
-      ((struct pqnode*)(dynarray_get(dynarray, index))) -> priority >= ((struct pqnode*)(dynarray_get(dynarray, 2 * index + 1))) -> priority &&
-      ((struct pqnode*)(dynarray_get(dynarray, index))) -> priority >= ((struct pqnode*)(dynarray_get(dynarray, 2 * index + 2))) -> priority) {
-    return isheap(dynarray, 2 * index + 1) * isheap(dynarray, 2 * index + 2);
-  }
-}
-
-void heapify(struct dynarray* dynarray, int index) {
-  while (!isheap(dynarray, index)) {
-    if (2 * index + 2 >= dynarray_length(dynarray)) {
-      if (((struct pqnode*)(dynarray_get(dynarray, index))) -> priority < ((struct pqnode*)(dynarray_get(dynarray, 2 * index + 1))) -> priority) {
-        dynarray_swap(dynarray, index, 2 * index + 1);
-      }
-      heapify(dynarray, 2 * index + 1);
-    } else if (((struct pqnode*)(dynarray_get(dynarray, index))) -> priority < ((struct pqnode*)(dynarray_get(dynarray, 2 * index + 1))) -> priority ||
-              ((struct pqnode*)(dynarray_get(dynarray, index))) -> priority < ((struct pqnode*)(dynarray_get(dynarray, 2 * index + 2))) -> priority) {
-      if (((struct pqnode*)(dynarray_get(dynarray, 2 * index + 1))) -> priority >= ((struct pqnode*)(dynarray_get(dynarray, 2 * index + 2))) -> priority) {
-        dynarray_swap(dynarray, index, 2 * index + 1);
-      } else {
-        dynarray_swap(dynarray, index, 2 * index + 2);
-      }
-      heapify(dynarray, 2 * index + 1);
-      heapify(dynarray, 2 * index + 2);
-    }
-  }
-}
-
-int percolatedown(struct dynarray* dy, int i) {
+int percdown(struct dynarray* dy, int i) {
   int garbage = 0;
-  if (2 * i + 1 >= dynarray_length(dy)) {
+  if (dynarray_length(dy) == 0) {
     return 0;
   }
-  if (2 * i + 2 >= dynarray_length(dy)) {
-    if (((struct pqnode*)(dynarray_get(dy, i))) -> priority < ((struct pqnode*)(dynarray_get(dy, 2 * i + 1))) -> priority) {
-      dynarray_swap(dy, i, 2 * i + 1);
-      garbage = percolatedown(dy, 2 * i + 1);
-    } else {
+  int p = ((struct pqnode*)(dynarray_get(dy, i))) -> priority;
+  int left = (2 * i) + 1;
+  int right = (2 * i) + 2;
+  //If the node we're looking at has no child nodes, we're done here
+  if (left >= dynarray_length(dy)) {
+    return 0;
+  }
+  int leftp = ((struct pqnode*)(dynarray_get(dy, 2 * i + 1))) -> priority;
+  //If the node we're looking at has only one child node, we'll just think about switching them
+  if (right >= dynarray_length(dy)) {
+    if (leftp > p) {
+      dynarray_swap(dy, i, left);
+      percdown(dy, left);
       return 0;
     }
   }
-  if (((struct pqnode*)(dynarray_get(dy, i))) -> priority < ((struct pqnode*)(dynarray_get(dy, 2 * i + 1))) -> priority || 
-      ((struct pqnode*)(dynarray_get(dy, i))) -> priority < ((struct pqnode*)(dynarray_get(dy, 2 * i + 2))) -> priority) {
-    if (((struct pqnode*)(dynarray_get(dy, 2 * i + 1))) -> priority >= ((struct pqnode*)(dynarray_get(dy, 2 * i + 2))) -> priority) {
-      dynarray_swap(dy, i, 2 * i + 1);
-      garbage = percolatedown(dy, 2 * i + 1);
+  int rightp = ((struct pqnode*)(dynarray_get(dy, 2 * i + 2))) -> priority;
+  //Else, we have to look at both
+  if (leftp > p || rightp > p) {
+    //Swap with whichever is higher if not heap
+    if (leftp > rightp) {
+      dynarray_swap(dy, right, left);
+      dynarray_swap(dy, i, right);
     } else {
-      dynarray_swap(dy, i, 2 * i + 2);
-      garbage = percolatedown(dy, 2 * i + 2);
+      dynarray_swap(dy, i, right);
     }
-  } else {
+    percdown(dy, left);
+    percdown(dy, right);
     return 0;
   }
 }
+
+void percolatedown(struct dynarray* dy) {
+  int i = 0;
+  while (i < dynarray_length(dy) - 1) {
+    if (2 * i + 1 > dynarray_length(dy) - 1) {
+      break;
+    }
+    if (2 * i + 2 > dynarray_length(dy) - 1) {
+      if (((struct pqnode*)(dynarray_get(dy, i))) -> priority < ((struct pqnode*)(dynarray_get(dy, 2 * i + 1))) -> priority) {
+        dynarray_swap(dy, i, 2 * i + 1);
+        i = 2 * i + 1;
+      }
+      break;
+    }
+    if (((struct pqnode*)(dynarray_get(dy, i))) -> priority < ((struct pqnode*)(dynarray_get(dy, 2 * i + 1))) -> priority || ((struct pqnode*)(dynarray_get(dy, i))) -> priority < ((struct pqnode*)(dynarray_get(dy, 2 * i + 2))) -> priority) {
+      if (((struct pqnode*)(dynarray_get(dy, 2 * i + 1))) -> priority > ((struct pqnode*)(dynarray_get(dy, 2 * i + 2))) -> priority) {
+        dynarray_swap(dy, i, 2 * i + 1);
+        i = 2 * i + 1;
+      } else {
+        dynarray_swap(dy, i, 2 * i + 2);
+        i = 2 * i + 2;
+      }
+    } else {
+      break;
+    }
+  }
+}
+
+
 
 
 /*
@@ -195,14 +171,11 @@ void pq_insert(struct pq* pq, void* data, int priority) {
   inser -> value = data;
   dynarray_insert(pq -> heap, -1, inser);
   int i = dynarray_length(pq -> heap) - 1;
-  while (i != 0 && ((struct pqnode*)(dynarray_get(pq -> heap, i))) -> priority > ((struct pqnode*)(dynarray_get(pq -> heap, floor((i - 1)/2)))) -> priority) {
+  while (i != 0 && ((struct pqnode*)(dynarray_get(pq -> heap, i))) -> priority >= ((struct pqnode*)(dynarray_get(pq -> heap, floor((i - 1)/2)))) -> priority) {
     dynarray_swap(pq -> heap, i, floor((i - 1)/2));
     i = floor((i - 1)/2);
   }
 }
-
-
-
 
 
 
@@ -261,12 +234,9 @@ void* pq_max_dequeue(struct pq* pq) {
     return temp;
   }
   //The rest of the cases, we gotta do that moving the highest-priority element to the end thing
-  if (((struct pqnode*)(dynarray_get(pq -> heap, 0))) -> priority < ((struct pqnode*)(dynarray_get(pq -> heap, 1))) -> priority) {
-    dynarray_swap(pq -> heap, 1, dynarray_length(pq -> heap) - 1);
-  } else {
-    dynarray_swap(pq -> heap, 0, dynarray_length(pq -> heap) - 1);
-  }
+  dynarray_insert(pq -> heap, 0, dynarray_get(pq -> heap, dynarray_length(pq -> heap) - 1));
+  dynarray_remove(pq -> heap, dynarray_length(pq -> heap) - 1);
   //Then we can percolate down yippee yahoo ha ha ho ho
-  percolatedown(pq -> heap, 0);
+  percolatedown(pq -> heap);
   return temp;
 }
